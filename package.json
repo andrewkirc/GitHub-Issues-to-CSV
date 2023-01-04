@@ -1,0 +1,16 @@
+{
+  "name": "github-issue-exporter",
+  "version": "1.0.0",
+  "description": "A Node.js script that exports all issues from a private GitHub repository to a Jira compatible CSV file.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node export.js",
+    "test": "echo 'Error: no test specified' && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^17.0.0"
+  }
+}
