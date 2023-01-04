@@ -1,4 +1,4 @@
-# GitHub-to-JIRA-Issue-Exporter
+# GitHub-Issues-to-CSV
 A Node.js script that exports all issues from a private GitHub repository to a Jira compatible CSV file.
 
 To use this script, you will need to install Node.js (v16+) and npm on your computer. You can then clone the repository and install the required dependencies by running the following commands:
