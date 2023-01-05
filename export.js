@@ -25,7 +25,7 @@ const REPO_OWNER = '';
 const REPO_NAME = '';
 
 // OPTIONAL: Add a prefix to the issue key (helpful if you are importing multiple GitHub project issues into an existing Jira project)
-const ISSUE_KEY_PREFIX = 'P-';
+const ISSUE_KEY_PREFIX = 'P';
 
 // Instantiate an Octokit client
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
