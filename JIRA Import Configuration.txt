@@ -52,7 +52,7 @@
   "config.delimiter" : ",",
   "config.project" : {
     "project.type" : null,
-    "project.key" : "WC",
+    "project.key" : "",
     "project.description" : null,
     "project.url" : null,
     "project.name" : "",
