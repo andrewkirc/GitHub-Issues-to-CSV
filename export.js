@@ -17,12 +17,15 @@ const moment = require('moment');
  *  https://support.atlassian.com/jira-software-cloud/docs/import-data-from-csv/
  */
 
-// Replace with your GitHub personal access token
+// REQUIRED: Replace with your GitHub personal access token
 const GITHUB_TOKEN = '';
 
-// Replace with the owner and repository name
+// REQUIRED: Replace with the owner and repository name
 const REPO_OWNER = '';
 const REPO_NAME = '';
+
+// OPTIONAL: Add a prefix to the issue key (helpful if you are importing multiple GitHub project issues into an existing Jira project)
+const ISSUE_KEY_PREFIX = 'P-';
 
 // Instantiate an Octokit client
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
