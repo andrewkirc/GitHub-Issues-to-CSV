@@ -2,6 +2,21 @@ const fs = require('fs');
 const { Octokit } = require("@octokit/rest");
 const moment = require('moment');
 
+/**
+ * This script exports all issues from a GitHub repository to a CSV file.
+ * 
+ * Instructions:
+ * 1. Create a GitHub personal access token with the "repo" scope.
+ *   https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token
+ * 2. Replace the GITHUB_TOKEN value with your personal access token.
+ * 3. Replace the REPO_OWNER and REPO_NAME values with your repository name.
+ * 4. Run the script using Node.js.
+ *  npm run start
+ * 5. The issues will be exported to a CSV file named "issues.csv".
+ * 6. Import the CSV file into your Jira project.
+ *  https://support.atlassian.com/jira-software-cloud/docs/import-data-from-csv/
+ */
+
 // Replace with your GitHub personal access token
 const GITHUB_TOKEN = '';
 
