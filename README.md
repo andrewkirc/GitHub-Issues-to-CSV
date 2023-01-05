@@ -32,8 +32,6 @@ This will create a CSV file called `issues.csv` in the current directory, contai
 
 **Importing Labels Into JIRA:** You may need to clean up your labels before importing the CSV file into Jira. This script automatically converts any labels that contain spaces to hyphens (-), since JIRA does not allow spaces in labels.
 
-```
-
 You can then import the CSV file into Jira by following these steps:
 https://support.atlassian.com/jira-cloud-administration/docs/import-data-from-a-csv-file/#Importing-your-CSV-file
 
