@@ -11,6 +11,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@octokit/rest": "^17.0.0"
+    "@octokit/rest": "^17.0.0",
+    "moment": "^2.28.0"
   }
 }
