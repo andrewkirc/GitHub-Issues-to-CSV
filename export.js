@@ -33,6 +33,7 @@ async function main() {
         console.log("Preview 1st Issue:", issues[0])
 
         // Create a new CSV file
+        console.log("Starting to write to CSV file, this may take a while...");
         const csvFile = fs.createWriteStream('issues.csv');
 
         // Write the CSV file header
@@ -58,7 +59,6 @@ async function main() {
             const createdDate = moment(issue.created_at).format('dd/mmm/yy h:mm');
             const updatedDate = moment(issue.updated_at).format('dd/mmm/yy h:mm');
 
-            console.log("Starting to write to CSV file, this may take a while...");
             csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}","${createdDate}","${updatedDate}","${issue.state}",${labelsCsv}\n`);
         }
 
