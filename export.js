@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { Octokit } = require("@octokit/rest");
+const moment = require('moment');
 
 /**
  * This script exports all issues from a GitHub repository to a CSV file.
@@ -67,9 +68,13 @@ async function main() {
 
             // Replace null values with empty strings
             const title = issue.title ? issue.title : '';
-            const body = issue.body ? issue.body : '';
+            const body = issue.body ? `${issue.body}<br /><br /><b>View original GitHub issue with comments:</b> ${issue.html_url}` : '';
 
-            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}","${issue.created_at}","${issue.updated_at}","${issue.state}",${labelsCsv}\n`);
+            // Format the created and updated dates using the moment library
+            const createdDate = moment(issue.created_at).format("DD/MMM/YY HH:mm");
+            const updatedDate = moment(issue.updated_at).format("DD/MMM/YY HH:mm");
+
+            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}","${createdDate}","${updatedDate}","${issue.state}",${labelsCsv}\n`);
         }
 
         console.log(`Exported ${issues.length} issues to issues.csv`);
