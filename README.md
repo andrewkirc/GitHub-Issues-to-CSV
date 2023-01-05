@@ -30,6 +30,12 @@ node export.js
 
 This will create a CSV file called `issues.csv` in the current directory, containing all the issues in the specified repository, along with their labels, created and updated dates, and descriptions. The CSV file will be in a format that is compatible with Jira.
 
+**WARNING:** Opening the CSV file in Excel will change the date format to a format that is not compatible with Jira. You'll need to modify the date format in Excel to be compatible with Jira.
+
+**Importing Labels Into JIRA:** You may need to clean up your labels before importing the CSV file into Jira. This script automatically converts any labels that contain spaces to hyphens (-), since JIRA does not allow spaces in labels.
+
+```
+
 You can then import the CSV file into Jira by following these steps:
 https://support.atlassian.com/jira-cloud-administration/docs/import-data-from-a-csv-file/#Importing-your-CSV-file
 
