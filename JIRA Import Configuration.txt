@@ -58,5 +58,5 @@
     "project.name" : "",
     "project.lead" : null
   },
-  "config.date.format" : "dd/MMM/yy h:mm a"
+  "config.date.format" : "dd/MMM/yy h:mm"
 }
