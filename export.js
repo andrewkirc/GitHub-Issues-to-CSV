@@ -9,7 +9,7 @@ const moment = require('moment');
  * 1. Create a GitHub personal access token with the "repo" scope.
  *   https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token
  * 2. Replace the GITHUB_TOKEN value with your personal access token.
- * 3. Replace the REPO_OWNER and REPO_NAME values with your repository name.
+ * 3. Replace the REPO_OWNER and REPO_NAME values with your repository name. Found in the URL of your repository.
  * 4. Run the script using Node.js.
  *  npm run start
  * 5. The issues will be exported to a CSV file named "issues.csv".
