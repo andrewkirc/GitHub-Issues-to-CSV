@@ -1,0 +1,62 @@
+{
+  "config.version" : "2.0",
+  "config.project.from.csv" : "false",
+  "config.encoding" : "UTF-8",
+  "config.file.id" : "af811f44-eed4-453d-b9d8-ad71864973f7",
+  "config.email.suffix" : "@weevio.co",
+  "config.file.name" : "issues.csv",
+  "config.field.mappings" : {
+    "Status" : {
+      "jira.field" : "status",
+      "userChanged" : "false",
+      "manualMapping" : "true"
+    },
+    "Description" : {
+      "jira.field" : "description",
+      "userChanged" : "false",
+      "manualMapping" : "false"
+    },
+    "Summary" : {
+      "jira.field" : "summary",
+      "userChanged" : "false",
+      "manualMapping" : "false"
+    },
+    "Labels" : {
+      "jira.field" : "labels",
+      "userChanged" : "false",
+      "manualMapping" : "false"
+    },
+    "Date Modified" : {
+      "jira.field" : "updated",
+      "userChanged" : "false",
+      "manualMapping" : "false"
+    },
+    "Date Created" : {
+      "jira.field" : "created",
+      "userChanged" : "false",
+      "manualMapping" : "false"
+    },
+    "Key" : {
+      "jira.field" : "issuekey",
+      "userChanged" : "true",
+      "manualMapping" : "false"
+    }
+  },
+  "config.csv.file.id" : null,
+  "config.value.mappings" : {
+    "Status" : {
+      "closed" : "10002",
+      "open" : "10000"
+    }
+  },
+  "config.delimiter" : ",",
+  "config.project" : {
+    "project.type" : null,
+    "project.key" : "WC",
+    "project.description" : null,
+    "project.url" : null,
+    "project.name" : "Weevio Cloud",
+    "project.lead" : null
+  },
+  "config.date.format" : "dd/MMM/yy h:mm a"
+}
