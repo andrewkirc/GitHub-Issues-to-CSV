@@ -68,7 +68,7 @@ async function main() {
 
             // Replace null values with empty strings
             const title = issue.title ? issue.title : '';
-            const body = issue.body ? `${issue.body}<br /><br /><b>View original GitHub issue with comments:</b> ${issue.html_url}` : '';
+            const body = issue.body ? `${issue.body} View original GitHub issue with comments: ${issue.html_url}` : `View original GitHub issue with comments: ${issue.html_url}`;
 
             // Format the created and updated dates using the moment library
             const createdDate = moment(issue.created_at).format("DD/MMM/YY HH:mm");
