@@ -55,8 +55,8 @@ async function main() {
             const body = issue.body ? issue.body : '';
 
             // Format the created and updated dates using the moment library
-            const createdDate = moment(issue.created_at).format('DD/MMM/YY h:mm a');
-            const updatedDate = moment(issue.updated_at).format('DD/MMM/YY h:mm a');
+            const createdDate = moment(issue.created_at).format('dd/mmm/yy h:mm');
+            const updatedDate = moment(issue.updated_at).format('dd/mmm/yy h:mm');
 
             console.log("Starting to write to CSV file, this may take a while...");
             csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}","${createdDate}","${updatedDate}","${issue.state}",${labelsCsv}\n`);
