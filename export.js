@@ -77,7 +77,7 @@ async function main() {
             const createdDate = moment(issue.created_at).format("DD/MMM/YY HH:mm");
             const updatedDate = moment(issue.updated_at).format("DD/MMM/YY HH:mm");
 
-            csvFile.write(`"${issue.number}${ISSUE_KEY_SUFFIX}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv}\n`);
+            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv}\n`);
         }
 
         console.log(`Exported ${issues.length} issues to issues.csv`);
