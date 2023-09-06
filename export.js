@@ -52,10 +52,11 @@ async function main() {
         const csvFile = fs.createWriteStream('issues.csv');
 
         // Write the CSV file header
-        csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels"\n');
+        csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels","HTML URL"\n');
 
         // Write the issues to the CSV file
-        for (const issue of issues) {
+        for (let i = 0; i < issues.length; i++) {
+            const issue = issues[i];
             // Fetch the labels for the issue
             const { data: labels } = await octokit.issues.listLabelsOnIssue({
                 owner: REPO_OWNER,
@@ -74,7 +75,10 @@ async function main() {
             const createdDate = moment(issue.created_at).format("DD/MMM/YY HH:mm");
             const updatedDate = moment(issue.updated_at).format("DD/MMM/YY HH:mm");
 
-            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv}\n`);
+            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv},${issue.html_url}\n`);
+
+            // Log the progress of the for loop
+            console.log(`Processed ${i + 1} of ${issues.length} issues`);
         }
 
         console.log(`Exported ${issues.length} issues to issues.csv`);
