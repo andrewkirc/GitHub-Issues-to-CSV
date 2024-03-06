@@ -1,6 +1,8 @@
 const fs = require('fs');
 const { Octokit } = require("@octokit/rest");
 const moment = require('moment');
+const envJSON = require('./env.json');
+const { env } = require('process');
 
 /**
  * This script exports all issues from a GitHub repository to a CSV file.
@@ -18,11 +20,11 @@ const moment = require('moment');
  */
 
 // REQUIRED: Replace with your GitHub personal access token
-const GITHUB_TOKEN = '';
+const GITHUB_TOKEN = envJSON.GITHUB_TOKEN;
 
 // REQUIRED: Replace with the owner and repository name
-const REPO_OWNER = '';
-const REPO_NAME = '';
+const REPO_OWNER = envJSON.REPO_OWNER;
+const REPO_NAME = envJSON.REPO_NAME;
 
 // Instantiate an Octokit client
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
