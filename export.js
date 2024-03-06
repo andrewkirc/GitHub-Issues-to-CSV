@@ -30,50 +30,69 @@ const REPO_NAME = envJSON.REPO_NAME;
 // Instantiate an Octokit client
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-async function main() {
-    try {
-        const query = `
-        query ($owner: String!, $name: String!) {
-            repository(owner: $owner, name: $name) {
-                issues(first: 50000) {
-                    nodes {
-                        id
-                        title
-                        body
-                        state
-                        createdAt
-                        updatedAt
-                        url
-                        labels(first: 10) {
-                            nodes {
-                                name
-                            }
+async function fetchIssues(afterCursor) {
+    const since = moment().subtract(1, 'year').toISOString();
+    const query = `
+    query ($owner: String!, $name: String!, $since: DateTime, $after: String) {
+        repository(owner: $owner, name: $name) {
+            issues(first: 100, after: $after, filterBy: { since: $since }) {
+                pageInfo {
+                    endCursor
+                    hasNextPage
+                }
+                nodes {
+                    id
+                    title
+                    body
+                    state
+                    createdAt
+                    updatedAt
+                    url
+                    labels(first: 10) {
+                        nodes {
+                            name
                         }
                     }
                 }
             }
-        }`;
+        }
+    }`;
 
-        const variables = {
-            owner: REPO_OWNER,
-            name: REPO_NAME
-        };
+    const variables = {
+        owner: REPO_OWNER,
+        name: REPO_NAME,
+        since: since,
+        after: afterCursor
+    };
 
-        const response = await request('POST /graphql', {
-            headers: {
-                authorization: `token ${GITHUB_TOKEN}`,
-            },
-            query,
-            variables
-        });
+    const response = await request('POST /graphql', {
+        headers: {
+            authorization: `token ${GITHUB_TOKEN}`,
+        },
+        query,
+        variables
+    });
 
-        const issues = response.data.data.repository.issues.nodes;
+    return response.data.data.repository.issues;
+}
+
+async function main() {
+    try {
+        let afterCursor = null;
+        let allIssues = [];
+
+        while (true) {
+            const { pageInfo, nodes } = await fetchIssues(afterCursor);
+            allIssues = allIssues.concat(nodes);
+            if (!pageInfo.hasNextPage) break;
+            afterCursor = pageInfo.endCursor;
+        }
 
         const csvFile = fs.createWriteStream('issues.csv');
         csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels","HTML URL"\n');
 
-        for (let i = 0; i < issues.length; i++) {
-            const issue = issues[i];
+        for (let i = 0; i < allIssues.length; i++) {
+            const issue = allIssues[i];
             const labelsCsv = issue.labels.nodes.map(label => `"${label.name.replace(/\s/g, '-')}"`).join(',');
             const title = issue.title ? issue.title : '';
             const body = issue.body ? `${issue.body} View original GitHub issue with comments: ${issue.url}` : `View original GitHub issue with comments: ${issue.url}`;
@@ -81,10 +100,10 @@ async function main() {
             const updatedDate = moment(issue.updatedAt).format("DD/MMM/YY HH:mm");
 
             csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv},${issue.url}\n`);
-            console.log(`Processed ${i + 1} of ${issues.length} issues`);
+            console.log(`Processed ${i + 1} of ${allIssues.length} issues`);
         }
 
-        console.log(`Exported ${issues.length} issues to issues.csv`);
+        console.log(`Exported ${allIssues.length} issues to issues.csv`);
     } catch (error) {
         console.error(error);
     }
