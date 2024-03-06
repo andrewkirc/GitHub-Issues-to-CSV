@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { request } = require('@octokit/request');
 const { Octokit } = require("@octokit/rest");
 const moment = require('moment');
 const envJSON = require('./env.json');
@@ -31,55 +32,55 @@ const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
 async function main() {
     try {
-        // Fetch all issues in the repository
-        const issues = [];
-        await octokit.paginate(
-            octokit.issues.listForRepo,
-            {
-                owner: REPO_OWNER,
-                repo: REPO_NAME,
-                state: 'all',
-                per_page: 100
-            },
-            (response) => {
-                console.log("Fetched:", response.data.length)
-                issues.push(...response.data);
+        const query = `
+        query ($owner: String!, $name: String!) {
+            repository(owner: $owner, name: $name) {
+                issues(first: 50000) {
+                    nodes {
+                        id
+                        title
+                        body
+                        state
+                        createdAt
+                        updatedAt
+                        url
+                        labels(first: 10) {
+                            nodes {
+                                name
+                            }
+                        }
+                    }
+                }
             }
-        );
-        console.log("Total Issues:", issues.length)
-        console.log("Preview 1st Issue:", issues[0])
+        }`;
 
-        // Create a new CSV file
-        console.log("Starting to write to CSV file, this may take a while...");
+        const variables = {
+            owner: REPO_OWNER,
+            name: REPO_NAME
+        };
+
+        const response = await request('POST /graphql', {
+            headers: {
+                authorization: `token ${GITHUB_TOKEN}`,
+            },
+            query,
+            variables
+        });
+
+        const issues = response.data.data.repository.issues.nodes;
+
         const csvFile = fs.createWriteStream('issues.csv');
-
-        // Write the CSV file header
         csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels","HTML URL"\n');
 
-        // Write the issues to the CSV file
         for (let i = 0; i < issues.length; i++) {
             const issue = issues[i];
-            // Fetch the labels for the issue
-            const { data: labels } = await octokit.issues.listLabelsOnIssue({
-                owner: REPO_OWNER,
-                repo: REPO_NAME,
-                issue_number: issue.number
-            });
-
-            // Convert the labels to a CSV string
-            const labelsCsv = labels.map(label => `"${label.name.replace(/\s/g, '-')}"`).join(',');
-
-            // Replace null values with empty strings
+            const labelsCsv = issue.labels.nodes.map(label => `"${label.name.replace(/\s/g, '-')}"`).join(',');
             const title = issue.title ? issue.title : '';
-            const body = issue.body ? `${issue.body} View original GitHub issue with comments: ${issue.html_url}` : `View original GitHub issue with comments: ${issue.html_url}`;
+            const body = issue.body ? `${issue.body} View original GitHub issue with comments: ${issue.url}` : `View original GitHub issue with comments: ${issue.url}`;
+            const createdDate = moment(issue.createdAt).format("DD/MMM/YY HH:mm");
+            const updatedDate = moment(issue.updatedAt).format("DD/MMM/YY HH:mm");
 
-            // Format the created and updated dates using the moment library
-            const createdDate = moment(issue.created_at).format("DD/MMM/YY HH:mm");
-            const updatedDate = moment(issue.updated_at).format("DD/MMM/YY HH:mm");
-
-            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv},${issue.html_url}\n`);
-
-            // Log the progress of the for loop
+            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv},${issue.url}\n`);
             console.log(`Processed ${i + 1} of ${issues.length} issues`);
         }
 
