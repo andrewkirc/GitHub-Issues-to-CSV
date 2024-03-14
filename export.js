@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { graphql } = require('@octokit/graphql');
 const { request } = require('@octokit/request');
 const { Octokit } = require("@octokit/rest");
 const moment = require('moment');
@@ -20,37 +21,93 @@ const { env } = require('process');
  *  https://support.atlassian.com/jira-software-cloud/docs/import-data-from-csv/
  */
 
-// REQUIRED: Replace with your GitHub personal access token
+// Assuming you've set your GitHub token, project ID, etc., in env.json
 const GITHUB_TOKEN = envJSON.GITHUB_TOKEN;
-
-// REQUIRED: Replace with the owner and repository name
-const REPO_OWNER = envJSON.REPO_OWNER;
-const REPO_NAME = envJSON.REPO_NAME;
+const org = envJSON.GITHUB_ORG;
 
 // Instantiate an Octokit client
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-async function fetchIssues(afterCursor) {
-    const since = moment().subtract(1, 'year').toISOString();
+const graphqlWithAuth = graphql.defaults({
+    headers: {
+        authorization: `token ${GITHUB_TOKEN}`,
+    },
+});
+
+async function fetchProjectIds() {
     const query = `
-    query ($owner: String!, $name: String!, $since: DateTime, $after: String) {
-        repository(owner: $owner, name: $name) {
-            issues(first: 100, after: $after, filterBy: { since: $since }) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                nodes {
-                    id
-                    title
-                    body
-                    state
-                    createdAt
-                    updatedAt
-                    url
-                    labels(first: 10) {
-                        nodes {
-                            name
+    query ($org: String!) {
+        organization(login: $org) {
+          projectsV2(first: 10) {
+            edges {
+              node {
+                id
+                title
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+        org,
+    };
+
+    try {
+        const response = await graphqlWithAuth(query, variables);
+        const array = response?.organization?.projectsV2?.edges;
+        console.log(`List of all GitHub Project Names and IDs (for organization: ${org}):\n\n${formatProjectList(array)}`);
+    } catch (error) {
+        console.error("Error fetching project IDs:", error);
+    }
+}
+
+function formatProjectList(projects) {
+    const filteredProjects = projects.filter(project => !project.node.title.toLowerCase().includes('untitled project'));
+
+    const formattedProjects = filteredProjects.map(project => {
+        const { id, title } = project.node;
+        return `- ${title} (ID: ${id})`;
+    });
+
+    return formattedProjects.join('\n');
+}
+
+async function fetchIssuesFromProject(afterCursor) {
+    const query = `
+    query ($projectId: ID!, $after: String) {
+        node(id: $projectId) {
+            ... on ProjectV2 {
+                items(first: 100, after: $after) {
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                    nodes {
+                        id
+                        content {
+                            ... on Issue {
+                                title
+                                body
+                                state
+                                createdAt
+                                updatedAt
+                                url
+                                labels(first: 10) {
+                                    nodes {
+                                        name
+                                    }
+                                }
+                                projectNextItems(first: 5) {
+                                    nodes {
+                                        field {
+                                            name
+                                        }
+                                        value
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -59,9 +116,7 @@ async function fetchIssues(afterCursor) {
     }`;
 
     const variables = {
-        owner: REPO_OWNER,
-        name: REPO_NAME,
-        since: since,
+        projectId: PROJECT_ID,
         after: afterCursor
     };
 
@@ -72,8 +127,9 @@ async function fetchIssues(afterCursor) {
         query,
         variables
     });
+    console.log(response.data);
 
-    return response.data.data.repository.issues;
+    return response.data.data.node.items;
 }
 
 async function main() {
@@ -82,31 +138,29 @@ async function main() {
         let allIssues = [];
 
         while (true) {
-            const { pageInfo, nodes } = await fetchIssues(afterCursor);
+            const { pageInfo, nodes } = await fetchIssuesFromProject(afterCursor);
+            // You'll need to extract the relevant issue details from nodes here
+            // This might require additional logic to navigate the nested structure
+            // and handle the custom fields appropriately.
             allIssues = allIssues.concat(nodes);
             if (!pageInfo.hasNextPage) break;
             afterCursor = pageInfo.endCursor;
         }
 
-        const csvFile = fs.createWriteStream('issues.csv');
-        csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels","HTML URL"\n');
+        const csvFile = fs.createWriteStream('project_issues.csv');
+        // Update header to include custom fields as needed
+        csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels","HTML URL","Custom Fields..."\n');
 
-        for (let i = 0; i < allIssues.length; i++) {
-            const issue = allIssues[i];
-            const labelsCsv = issue.labels.nodes.map(label => `"${label.name.replace(/\s/g, '-')}"`).join(',');
-            const title = issue.title ? issue.title : '';
-            const body = issue.body ? `${issue.body} View original GitHub issue with comments: ${issue.url}` : `View original GitHub issue with comments: ${issue.url}`;
-            const createdDate = moment(issue.createdAt).format("DD/MMM/YY HH:mm");
-            const updatedDate = moment(issue.updatedAt).format("DD/MMM/YY HH:mm");
+        // Processing logic here would need to be adjusted to match the structure of project issues
+        // and to correctly extract and format custom fields.
 
-            csvFile.write(`"${issue.id}","${title.replace(/"/g, '""')}","${body.replace(/"/g, '""')}"," ${createdDate}"," ${updatedDate}","${issue.state}",${labelsCsv},${issue.url}\n`);
-            console.log(`Processed ${i + 1} of ${allIssues.length} issues`);
-        }
-
-        console.log(`Exported ${allIssues.length} issues to issues.csv`);
+        console.log(`Exported ${allIssues.length} issues to project_issues.csv`);
     } catch (error) {
         console.error(error);
     }
 }
 
-main();
+// Replace 'ownerName' and 'repoName' with actual values
+fetchProjectIds('ownerName', 'repoName');
+
+//main();
