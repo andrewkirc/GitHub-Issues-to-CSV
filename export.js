@@ -38,7 +38,7 @@ async function fetchProjectIds() {
     const query = `
     query ($org: String!) {
         organization(login: $org) {
-          projectsV2(first: 10) {
+          projectsV2(first: 50) {
             edges {
               node {
                 id
