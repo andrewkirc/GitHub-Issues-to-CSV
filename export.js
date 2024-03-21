@@ -232,22 +232,19 @@ async function main() {
             console.log(`Fetched ${nodes.length} issues from project...`);
 
             for (const node of nodes) {
-                console.log(`Processing issue ${node.content.number}...`);
                 // Add standard fields
                 const labels = node.content.labels ? node.content.labels.nodes.map(label => label.name).join(", ") : "";
                 const issue = {
-                    id: formatFieldValue(node.id),
-                    title: formatFieldValue(node.content.title.text),
-                    body: formatFieldValue(node.content.body),
-                    number: formatFieldValue(node.content.number),
-                    url: formatFieldValue(node.content.url),
+                    number: node.content.number,
+                    body: node.content.body,
+                    url: node.content.url,
                     labels
                 };
                 // Add custom fields
                 for (const fieldValue of node.fieldValues.nodes) {
-                    const fieldName = formatFieldValue(fieldValue?.field?.name);
+                    const fieldName = fieldValue?.field?.name;
                     if (fieldName) {
-                        const fieldValueStr = formatFieldValue(fieldValue);
+                        const fieldValueStr = fieldValue;
                         issue[fieldName] = fieldValueStr;
                         customFieldsSet.add(fieldName);
                     }
@@ -261,7 +258,7 @@ async function main() {
 
         // Convert to CSV
         // Assuming 'allIssues' is an array of issue objects and 'customFieldsSet' contains all unique field names
-        const headers = ["ID", "Title", "Body", "Number", "URL", "Labels", ...customFieldsSet];
+        const headers = ["Number", "Title", "Body", "Number", "URL", "Labels", ...customFieldsSet];
 
         // Initialize CSV content with headers
         let csvContent = [headers.join(",")];
@@ -272,7 +269,8 @@ async function main() {
             let row = headers.map(header => {
                 // For each header, extract the corresponding value from the issue
                 // If the issue does not have a value for this header, use an empty string
-                return formatFieldValue(issue[header] || "");
+                const formattedHeader = formatFieldValue(issue[header] || "");
+                return formattedHeader;
             });
             // Join the row's values into a single CSV-formatted string and add it to the content
             csvContent.push(row.join(","));
@@ -292,6 +290,15 @@ async function main() {
 // This function formats the fields before adding them to the CSV
 function formatFieldValue(value) {
     if (value === null || value === undefined) return "";
+
+    // Convert various value objects to strings for CSV
+    if (value.text) value = value.text; //Text column
+    if (value.number) value = value.number; //Number column
+    if (value.date) value = moment(value.date).format("YYYY-MM-DD"); //Date column
+    if (value.users?.nodes) value = value.users.nodes.map(user => user.login).join(", "); //User column
+    if (value.repository?.name) value = value.repository.name; //Repository column
+    if (value.milestone?.title) value = value.milestone.title; //Milestone column
+    if (value.name) value = value.name; //Status column
 
     // Ensure value is converted to a string to safely use .replace()
     if (typeof value !== 'string') {
@@ -314,38 +321,6 @@ function formatFieldValue(value) {
         value = `"${value}"`; // Enclose in quotes if value contains commas, newlines, or quotes
     }
     return value;
-}
-
-function processIssueForCSV(issue) {
-    const processedIssue = {};
-
-    for (const [key, value] of Object.entries(issue)) {
-        // Use the custom function to extract plain text from each value
-        processedIssue[key] = extractPlainText(value);
-    }
-
-    return processedIssue;
-}
-
-function extractPlainText(value) {
-    if (Array.isArray(value)) {
-        // For arrays, join their elements (assuming they are strings or can be converted to strings)
-        return value.map(element => {
-            // If the element itself is an object, you might need to pick a specific property
-            if (typeof element === 'object' && element !== null) {
-                // Example: if elements are objects with a 'name' property
-                return element.name;
-            }
-            // Otherwise, convert the element to a string
-            return element.toString();
-        }).join(", ");
-    } else if (typeof value === 'object' && value !== null) {
-        // For objects, extract a specific property or convert the object to a representative string
-        // Example: extracting the 'name' property from an object
-        return value.name || "";
-    }
-    // For simple types (string, number), return them directly
-    return value.toString();
 }
 
 // Replace 'ownerName' and 'repoName' with actual values
