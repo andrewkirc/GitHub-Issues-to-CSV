@@ -23,6 +23,7 @@ const { env } = require('process');
 
 // Assuming you've set your GitHub token, project ID, etc., in env.json
 const GITHUB_TOKEN = envJSON.GITHUB_TOKEN;
+const PROJECT_ID = envJSON.GITHUB_PROJECT_ID;
 const org = envJSON.GITHUB_ORG;
 
 // Instantiate an Octokit client
@@ -76,91 +77,215 @@ function formatProjectList(projects) {
 
 async function fetchIssuesFromProject(afterCursor) {
     const query = `
-    query ($projectId: ID!, $after: String) {
+    query FetchIssues($projectId: ID!, $after: String) {
         node(id: $projectId) {
-            ... on ProjectV2 {
-                items(first: 100, after: $after) {
-                    pageInfo {
-                        hasNextPage
-                        endCursor
+          ... on ProjectV2 {
+            items(first: 100, after: $after) {
+              pageInfo {
+                endCursor
+                hasNextPage
+              }
+              nodes {
+                id
+                content{
+                  ... on DraftIssue {
+                    title
+                    body
+                  }
+                  ...on Issue {
+                    title
+                    body
+                    number
+                    url
+                    labels(first: 20) {
+                      nodes {
+                        name
+                      }
                     }
-                    nodes {
-                        id
-                        content {
-                            ... on Issue {
-                                title
-                                body
-                                state
-                                createdAt
-                                updatedAt
-                                url
-                                labels(first: 10) {
-                                    nodes {
-                                        name
-                                    }
-                                }
-                                projectNextItems(first: 5) {
-                                    nodes {
-                                        field {
-                                            name
-                                        }
-                                        value
-                                    }
-                                }
-                            }
-                        }
+                  }
+                  ...on PullRequest {
+                    title
+                    body
+                    number
+                    url
+                    labels(first: 20) {
+                      nodes {
+                        name
+                      }
                     }
+                  }
                 }
+                fieldValues(first: 50) {
+                  nodes {
+                    ... on ProjectV2ItemFieldTextValue {
+                      text
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldNumberValue {
+                      number
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldDateValue {
+                      date
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldIterationValue {
+                      title
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldSingleSelectValue {
+                      name
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldMilestoneValue {
+                      milestone {
+                        title
+                      }
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldRepositoryValue {
+                      repository {
+                        name
+                      }
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                    ... on ProjectV2ItemFieldUserValue {
+                      users(first: 10) {
+                        nodes {
+                          login
+                        }
+                      }
+                      field {
+                        ... on ProjectV2FieldCommon {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
+          }
         }
-    }`;
+      }`;
 
     const variables = {
         projectId: PROJECT_ID,
-        after: afterCursor
+        after: afterCursor, // Use afterCursor for pagination
     };
 
-    const response = await request('POST /graphql', {
-        headers: {
-            authorization: `token ${GITHUB_TOKEN}`,
-        },
-        query,
-        variables
-    });
-    console.log(response.data);
+    try {
+        const response = await graphqlWithAuth(query, variables);
+        const items = response.node.items;
+        const pageInfo = items.pageInfo;
+        const nodes = items.nodes;
+        console.log(`Fetched ${nodes.length} issues from project`);
 
-    return response.data.data.node.items;
+        return {
+            pageInfo,
+            nodes,
+        };
+    } catch (error) {
+        console.error("Error fetching issues:", error);
+        return { pageInfo: {}, nodes: [] };
+    }
 }
+
 
 async function main() {
     try {
         let afterCursor = null;
         let allIssues = [];
+        let customFieldsSet = new Set();
 
         while (true) {
-            const { pageInfo, nodes } = await fetchIssuesFromProject(afterCursor);
-            // You'll need to extract the relevant issue details from nodes here
-            // This might require additional logic to navigate the nested structure
-            // and handle the custom fields appropriately.
-            allIssues = allIssues.concat(nodes);
+            const response = await fetchIssuesFromProject(afterCursor);
+            const pageInfo = response.pageInfo;
+            const nodes = response.nodes;
+            console.log(`Fetched ${nodes.length} issues from project:`, nodes[0].fieldValues.nodes);
+
+            for (const node of nodes) {
+                // Add standard fields
+                const labels = node.content.labels ? node.content.labels.nodes.map(label => label.name).join(", ") : "";
+                const issue = {
+                    id: node.id,
+                    title: node.content.title,
+                    body: node.content.body,
+                    number: node.content.number,
+                    url: node.content.url,
+                    labels
+                };
+                // Add custom fields
+                for (const fieldValue of node.fieldValues.nodes) {
+                    const fieldName = fieldValue?.field?.name;
+                    if (fieldName) {
+                        const fieldValueStr = formatFieldValue(fieldValue);
+                        issue[fieldName] = fieldValueStr;
+                        customFieldsSet.add(fieldName);
+                    }
+                }
+                allIssues.push(issue);
+            }
+
             if (!pageInfo.hasNextPage) break;
             afterCursor = pageInfo.endCursor;
         }
 
-        const csvFile = fs.createWriteStream('project_issues.csv');
-        // Update header to include custom fields as needed
-        csvFile.write('"Key","Summary","Description","Date Created","Date Modified","Status","Labels","HTML URL","Custom Fields..."\n');
+        // Convert to CSV
+        const headers = ["ID", "Title", "Body", "Number", "URL", "Labels", ...customFieldsSet];
+        const csvContent = [
+            headers.join(","),
+            ...allIssues.map(issue => headers.map(header => `"${issue[header] || ""}"`).join(","))
+        ].join("\n");
 
-        // Processing logic here would need to be adjusted to match the structure of project issues
-        // and to correctly extract and format custom fields.
-
+        fs.writeFileSync('project_issues.csv', csvContent);
         console.log(`Exported ${allIssues.length} issues to project_issues.csv`);
     } catch (error) {
         console.error(error);
     }
 }
 
+// This function formats the field value based on its type
+function formatFieldValue(fieldValue) {
+    // Implement logic based on the field type to convert it to a string
+    // For example, if it's a user field, concatenate user logins
+    if (fieldValue.users) {
+        return fieldValue.users.nodes.map(user => user.login).join(", ");
+    }
+    // Add similar cases for other field types like repository, text, number, etc.
+    // For simplicity, this example covers only the user field case
+    return "";
+}
+
 // Replace 'ownerName' and 'repoName' with actual values
 fetchProjectIds('ownerName', 'repoName');
 
-//main();
+main();
