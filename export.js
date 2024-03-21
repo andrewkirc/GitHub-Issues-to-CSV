@@ -207,7 +207,6 @@ async function fetchIssuesFromProject(afterCursor) {
         const items = response.node.items;
         const pageInfo = items.pageInfo;
         const nodes = items.nodes;
-        console.log(`Fetched ${nodes.length} issues from project`);
 
         return {
             pageInfo,
@@ -230,7 +229,7 @@ async function main() {
             const response = await fetchIssuesFromProject(afterCursor);
             const pageInfo = response.pageInfo;
             const nodes = response.nodes;
-            console.log(`Fetched ${nodes.length} issues from project:`, nodes[0].fieldValues.nodes);
+            console.log(`Fetched ${nodes.length} issues from project...`);
 
             for (const node of nodes) {
                 // Add standard fields
@@ -275,15 +274,26 @@ async function main() {
 
 // This function formats the field value based on its type
 function formatFieldValue(fieldValue) {
-    // Implement logic based on the field type to convert it to a string
-    // For example, if it's a user field, concatenate user logins
-    if (fieldValue.users) {
-        return fieldValue.users.nodes.map(user => user.login).join(", ");
+    let value = "";
+    if (fieldValue.text) {
+        value = fieldValue.text;
+    } else if (fieldValue.number !== undefined) {
+        value = fieldValue.number.toString();
+    } else if (fieldValue.date) {
+        value = moment(fieldValue.date).format("YYYY-MM-DD");
+    } else if (fieldValue.users) {
+        value = fieldValue.users.nodes.map(user => user.login).join(", ");
     }
-    // Add similar cases for other field types like repository, text, number, etc.
-    // For simplicity, this example covers only the user field case
-    return "";
+    // Add more conditions for other specific types as needed...
+
+    // Escaping special characters
+    value = value.replace(/"/g, '""'); // Escape quotes
+    if (value.includes(",") || value.includes("\n") || value.includes("\"")) {
+        value = `"${value}"`; // Enclose in quotes if value contains commas, newlines, or quotes
+    }
+    return value;
 }
+
 
 // Replace 'ownerName' and 'repoName' with actual values
 fetchProjectIds('ownerName', 'repoName');
