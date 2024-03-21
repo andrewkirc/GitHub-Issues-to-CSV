@@ -232,19 +232,20 @@ async function main() {
             console.log(`Fetched ${nodes.length} issues from project...`);
 
             for (const node of nodes) {
+                console.log(`Processing issue ${node.content.number}...`);
                 // Add standard fields
                 const labels = node.content.labels ? node.content.labels.nodes.map(label => label.name).join(", ") : "";
                 const issue = {
-                    id: node.id,
-                    title: node.content.title,
-                    body: node.content.body,
-                    number: node.content.number,
-                    url: node.content.url,
+                    id: formatFieldValue(node.id),
+                    title: formatFieldValue(node.content.title.text),
+                    body: formatFieldValue(node.content.body),
+                    number: formatFieldValue(node.content.number),
+                    url: formatFieldValue(node.content.url),
                     labels
                 };
                 // Add custom fields
                 for (const fieldValue of node.fieldValues.nodes) {
-                    const fieldName = fieldValue?.field?.name;
+                    const fieldName = formatFieldValue(fieldValue?.field?.name);
                     if (fieldName) {
                         const fieldValueStr = formatFieldValue(fieldValue);
                         issue[fieldName] = fieldValueStr;
@@ -259,12 +260,28 @@ async function main() {
         }
 
         // Convert to CSV
+        // Assuming 'allIssues' is an array of issue objects and 'customFieldsSet' contains all unique field names
         const headers = ["ID", "Title", "Body", "Number", "URL", "Labels", ...customFieldsSet];
-        const csvContent = [
-            headers.join(","),
-            ...allIssues.map(issue => headers.map(header => `"${issue[header] || ""}"`).join(","))
-        ].join("\n");
 
+        // Initialize CSV content with headers
+        let csvContent = [headers.join(",")];
+
+        // Iterate over all issues to create CSV rows
+        allIssues.forEach(issue => {
+            // Create an array to hold the values for this issue, in the order of the headers
+            let row = headers.map(header => {
+                // For each header, extract the corresponding value from the issue
+                // If the issue does not have a value for this header, use an empty string
+                return formatFieldValue(issue[header] || "");
+            });
+            // Join the row's values into a single CSV-formatted string and add it to the content
+            csvContent.push(row.join(","));
+        });
+
+        // Join all rows into the final CSV content
+        csvContent = csvContent.join("\n");
+
+        // Write the CSV content to a file
         fs.writeFileSync('project_issues.csv', csvContent);
         console.log(`Exported ${allIssues.length} issues to project_issues.csv`);
     } catch (error) {
@@ -272,28 +289,64 @@ async function main() {
     }
 }
 
-// This function formats the field value based on its type
-function formatFieldValue(fieldValue) {
-    let value = "";
-    if (fieldValue.text) {
-        value = fieldValue.text;
-    } else if (fieldValue.number !== undefined) {
-        value = fieldValue.number.toString();
-    } else if (fieldValue.date) {
-        value = moment(fieldValue.date).format("YYYY-MM-DD");
-    } else if (fieldValue.users) {
-        value = fieldValue.users.nodes.map(user => user.login).join(", ");
+// This function formats the fields before adding them to the CSV
+function formatFieldValue(value) {
+    if (value === null || value === undefined) return "";
+
+    // Ensure value is converted to a string to safely use .replace()
+    if (typeof value !== 'string') {
+        if (Array.isArray(value)) {
+            // Join array elements with a comma for CSV, and ensure each element is a string
+            value = value.map(element => element.toString()).join(", ");
+        } else if (typeof value === 'object') {
+            // Convert objects to a string representation
+            value = JSON.stringify(value, null, 2);
+        } else {
+            // Convert any other type to string
+            value = value.toString();
+        }
     }
-    // Add more conditions for other specific types as needed...
 
     // Escaping special characters
     value = value.replace(/"/g, '""'); // Escape quotes
+
     if (value.includes(",") || value.includes("\n") || value.includes("\"")) {
         value = `"${value}"`; // Enclose in quotes if value contains commas, newlines, or quotes
     }
     return value;
 }
 
+function processIssueForCSV(issue) {
+    const processedIssue = {};
+
+    for (const [key, value] of Object.entries(issue)) {
+        // Use the custom function to extract plain text from each value
+        processedIssue[key] = extractPlainText(value);
+    }
+
+    return processedIssue;
+}
+
+function extractPlainText(value) {
+    if (Array.isArray(value)) {
+        // For arrays, join their elements (assuming they are strings or can be converted to strings)
+        return value.map(element => {
+            // If the element itself is an object, you might need to pick a specific property
+            if (typeof element === 'object' && element !== null) {
+                // Example: if elements are objects with a 'name' property
+                return element.name;
+            }
+            // Otherwise, convert the element to a string
+            return element.toString();
+        }).join(", ");
+    } else if (typeof value === 'object' && value !== null) {
+        // For objects, extract a specific property or convert the object to a representative string
+        // Example: extracting the 'name' property from an object
+        return value.name || "";
+    }
+    // For simple types (string, number), return them directly
+    return value.toString();
+}
 
 // Replace 'ownerName' and 'repoName' with actual values
 fetchProjectIds('ownerName', 'repoName');
