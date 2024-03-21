@@ -235,10 +235,11 @@ async function main() {
                 // Add standard fields
                 const labels = node.content.labels ? node.content.labels.nodes.map(label => label.name).join(", ") : "";
                 const issue = {
-                    number: node.content.number,
-                    body: node.content.body,
-                    url: node.content.url,
-                    labels
+                    Number: node.content.number?.toString() || "", // Ensure number is a string and add fallback
+                    Title: node.content.title, // Added Title field assuming you want to include it
+                    Body: node.content.body,
+                    URL: node.content.url,
+                    Labels: labels
                 };
                 // Add custom fields
                 for (const fieldValue of node.fieldValues.nodes) {
@@ -258,7 +259,7 @@ async function main() {
 
         // Convert to CSV
         // Assuming 'allIssues' is an array of issue objects and 'customFieldsSet' contains all unique field names
-        const headers = ["Number", "Title", "Body", "Number", "URL", "Labels", ...customFieldsSet];
+        const headers = ["Number", "Title", "Body", "URL", "Labels", ...customFieldsSet];
 
         // Initialize CSV content with headers
         let csvContent = [headers.join(",")];
@@ -293,7 +294,7 @@ function formatFieldValue(value) {
 
     // Convert various value objects to strings for CSV
     if (value.text) value = value.text; //Text column
-    if (value.number) value = value.number; //Number column
+    if (value.number) value = `${value.number}`; //Number column
     if (value.date) value = moment(value.date).format("YYYY-MM-DD"); //Date column
     if (value.users?.nodes) value = value.users.nodes.map(user => user.login).join(", "); //User column
     if (value.repository?.name) value = value.repository.name; //Repository column
