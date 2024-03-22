@@ -26,9 +26,6 @@ const GITHUB_TOKEN = envJSON.GITHUB_TOKEN;
 const PROJECT_ID = envJSON.GITHUB_PROJECT_ID;
 const org = envJSON.GITHUB_ORG;
 
-// Instantiate an Octokit client
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
-
 const graphqlWithAuth = graphql.defaults({
     headers: {
         authorization: `token ${GITHUB_TOKEN}`,
