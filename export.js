@@ -288,6 +288,7 @@ async function main(GITHUB_PROJECT_IDs) {
                         Labels: labels,
                         Created: moment(node.content.createdAt).format("YYYY-MM-DD"),
                         Updated: moment(node.content.updatedAt).format("YYYY-MM-DD"),
+                        'GitHub Project': node.content.project
                     };
                     // Add custom fields
                     for (const fieldValue of node.fieldValues.nodes) {
@@ -308,7 +309,7 @@ async function main(GITHUB_PROJECT_IDs) {
 
         // Convert to CSV
         // Assuming 'allIssues' is an array of issue objects and 'customFieldsSet' contains all unique field names
-        const headers = ["Number", "Title", "Body", "URL", "Labels", "Created", "Updated", ...customFieldsSet];
+        const headers = ["Number", "Title", "Body", "URL", "Labels", "Created", "Updated", ...customFieldsSet, "GitHub Project"];
 
         // Initialize CSV content with headers
         let csvContent = [headers.join(",")];
