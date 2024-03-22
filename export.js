@@ -73,6 +73,7 @@ async function fetchIssuesFromProject(afterCursor, PROJECT_ID) {
     query FetchIssues($projectId: ID!, $after: String) {
         node(id: $projectId) {
           ... on ProjectV2 {
+            title
             items(first: 100, after: $after) {
               pageInfo {
                 endCursor
@@ -202,6 +203,11 @@ async function fetchIssuesFromProject(afterCursor, PROJECT_ID) {
         const items = response.node.items;
         const pageInfo = items.pageInfo;
         const nodes = items.nodes;
+        
+        // Add project name to each issue
+        nodes.forEach(node => {
+            node.content.project = response.node.title;
+        });
 
         return {
             pageInfo,
@@ -264,38 +270,40 @@ async function main(GITHUB_PROJECT_IDs) {
         let allIssues = [];
         let customFieldsSet = new Set();
 
-        while (true) {
-            const response = await fetchIssuesFromProject(afterCursor, GITHUB_PROJECT_IDs);
-            const pageInfo = response.pageInfo;
-            const nodes = response.nodes;
-            console.log(`Fetched ${nodes.length} issues from project...`, nodes[0]);
+        for (const projectId of GITHUB_PROJECT_IDs) {
+            while (true) {
+                const response = await fetchIssuesFromProject(afterCursor, projectId);
+                const pageInfo = response.pageInfo;
+                const nodes = response.nodes;
+                console.log(`Fetched ${nodes.length} issues from project...`, nodes[0]);
 
-            for (const node of nodes) {
-                // Add standard fields
-                const labels = node.content.labels ? node.content.labels.nodes.map(label => label.name).join(", ") : "";
-                const issue = {
-                    Number: node.content.number?.toString() || "", // Ensure number is a string and add fallback
-                    Title: node.content.title, // Added Title field assuming you want to include it
-                    Body: node.content.body,
-                    URL: node.content.url,
-                    Labels: labels,
-                    Created: moment(node.content.createdAt).format("YYYY-MM-DD"),
-                    Updated: moment(node.content.updatedAt).format("YYYY-MM-DD"),
-                };
-                // Add custom fields
-                for (const fieldValue of node.fieldValues.nodes) {
-                    const fieldName = fieldValue?.field?.name;
-                    if (fieldName) {
-                        const fieldValueStr = fieldValue;
-                        issue[fieldName] = fieldValueStr;
-                        customFieldsSet.add(fieldName);
+                for (const node of nodes) {
+                    // Add standard fields
+                    const labels = node.content.labels ? node.content.labels.nodes.map(label => label.name).join(", ") : "";
+                    const issue = {
+                        Number: node.content.number?.toString() || "", // Ensure number is a string and add fallback
+                        Title: node.content.title, // Added Title field assuming you want to include it
+                        Body: node.content.body,
+                        URL: node.content.url,
+                        Labels: labels,
+                        Created: moment(node.content.createdAt).format("YYYY-MM-DD"),
+                        Updated: moment(node.content.updatedAt).format("YYYY-MM-DD"),
+                    };
+                    // Add custom fields
+                    for (const fieldValue of node.fieldValues.nodes) {
+                        const fieldName = fieldValue?.field?.name;
+                        if (fieldName) {
+                            const fieldValueStr = fieldValue;
+                            issue[fieldName] = fieldValueStr;
+                            customFieldsSet.add(fieldName);
+                        }
                     }
+                    allIssues.push(issue);
                 }
-                allIssues.push(issue);
-            }
 
-            if (!pageInfo.hasNextPage) break;
-            afterCursor = pageInfo.endCursor;
+                if (!pageInfo.hasNextPage) break;
+                afterCursor = pageInfo.endCursor;
+            }
         }
 
         // Convert to CSV
