@@ -20,7 +20,6 @@ const envJSON = require('./env.json');
 
 // Assuming you've set your GitHub token, project ID, etc., in env.json
 const GITHUB_TOKEN = envJSON.GITHUB_TOKEN;
-const PROJECT_ID = envJSON.GITHUB_PROJECT_ID;
 const org = envJSON.GITHUB_ORG;
 
 const graphqlWithAuth = graphql.defaults({
@@ -69,7 +68,7 @@ function formatProjectList(projects) {
     return formattedProjects.join('\n');
 }
 
-async function fetchIssuesFromProject(afterCursor) {
+async function fetchIssuesFromProject(afterCursor, PROJECT_ID) {
     const query = `
     query FetchIssues($projectId: ID!, $after: String) {
         node(id: $projectId) {
@@ -214,15 +213,59 @@ async function fetchIssuesFromProject(afterCursor) {
     }
 }
 
+// This function formats the fields before adding them to the CSV
+function formatFieldValue(value) {
+    if (value === null || value === undefined) return "";
 
-async function main() {
+    // Convert various value objects to strings for CSV
+    if (value.text) value = value.text; //Text column
+    if (value.number) value = `${value.number}`; //Number column
+    if (value.date) value = moment(value.date).format("YYYY-MM-DD"); //Date column
+    if (value.users?.nodes) value = value.users.nodes.map(user => user.login).join(", "); //User column
+    if (value.repository?.name) value = value.repository.name; //Repository column
+    if (value.milestone?.title) value = value.milestone.title; //Milestone column
+    if (value.name) value = value.name; //Status column
+
+    // Ensure value is converted to a string to safely use .replace()
+    if (typeof value !== 'string') {
+        if (Array.isArray(value)) {
+            // Join array elements with a comma for CSV, and ensure each element is a string
+            value = value.map(element => element.toString()).join(", ");
+        } else if (typeof value === 'object') {
+            // Convert objects to a string representation
+            value = JSON.stringify(value, null, 2);
+        } else {
+            // Convert any other type to string
+            value = value.toString();
+        }
+    }
+
+    // Convert value to string to handle .replace()
+    value = value.toString();
+
+    // Removing characters outside of the desired Unicode range
+    value = value.replace(/[^\x00-\x7F]/g, '');
+
+    // Removing emojis using regex
+    value = value.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{2934}\u{2935}\u{2B05}\u{2B06}\u{2B07}\u{2B1B}\u{2B1C}\u{2B50}\u{2B55}\u{3030}\u{303D}\u{3297}\u{3299}\u{FE0F}]/gu, '');
+
+    // Escaping special characters
+    value = value.replace(/"/g, '""'); // Escape quotes
+
+    if (value.includes(",") || value.includes("\n") || value.includes("\"")) {
+        value = `"${value}"`; // Enclose in quotes if value contains commas, newlines, or quotes
+    }
+    return value;
+}
+
+async function main(GITHUB_PROJECT_IDs) {
     try {
         let afterCursor = null;
         let allIssues = [];
         let customFieldsSet = new Set();
 
         while (true) {
-            const response = await fetchIssuesFromProject(afterCursor);
+            const response = await fetchIssuesFromProject(afterCursor, GITHUB_PROJECT_IDs);
             const pageInfo = response.pageInfo;
             const nodes = response.nodes;
             console.log(`Fetched ${nodes.length} issues from project...`, nodes[0]);
@@ -286,52 +329,7 @@ async function main() {
     }
 }
 
-// This function formats the fields before adding them to the CSV
-function formatFieldValue(value) {
-    if (value === null || value === undefined) return "";
-
-    // Convert various value objects to strings for CSV
-    if (value.text) value = value.text; //Text column
-    if (value.number) value = `${value.number}`; //Number column
-    if (value.date) value = moment(value.date).format("YYYY-MM-DD"); //Date column
-    if (value.users?.nodes) value = value.users.nodes.map(user => user.login).join(", "); //User column
-    if (value.repository?.name) value = value.repository.name; //Repository column
-    if (value.milestone?.title) value = value.milestone.title; //Milestone column
-    if (value.name) value = value.name; //Status column
-
-    // Ensure value is converted to a string to safely use .replace()
-    if (typeof value !== 'string') {
-        if (Array.isArray(value)) {
-            // Join array elements with a comma for CSV, and ensure each element is a string
-            value = value.map(element => element.toString()).join(", ");
-        } else if (typeof value === 'object') {
-            // Convert objects to a string representation
-            value = JSON.stringify(value, null, 2);
-        } else {
-            // Convert any other type to string
-            value = value.toString();
-        }
-    }
-
-    // Convert value to string to handle .replace()
-    value = value.toString();
-
-    // Removing characters outside of the desired Unicode range
-    value = value.replace(/[^\x00-\x7F]/g, '');
-
-    // Removing emojis using regex
-    value = value.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{2934}\u{2935}\u{2B05}\u{2B06}\u{2B07}\u{2B1B}\u{2B1C}\u{2B50}\u{2B55}\u{3030}\u{303D}\u{3297}\u{3299}\u{FE0F}]/gu, '');
-
-    // Escaping special characters
-    value = value.replace(/"/g, '""'); // Escape quotes
-
-    if (value.includes(",") || value.includes("\n") || value.includes("\"")) {
-        value = `"${value}"`; // Enclose in quotes if value contains commas, newlines, or quotes
-    }
-    return value;
-}
-
 // Replace 'ownerName' and 'repoName' with actual values
 fetchProjectIds('ownerName', 'repoName');
 
-main();
+main(envJSON.GITHUB_PROJECT_IDs);
