@@ -97,6 +97,8 @@ async function fetchIssuesFromProject(afterCursor) {
                     body
                     number
                     url
+                    createdAt
+                    updatedAt
                     labels(first: 20) {
                       nodes {
                         name
@@ -229,7 +231,7 @@ async function main() {
             const response = await fetchIssuesFromProject(afterCursor);
             const pageInfo = response.pageInfo;
             const nodes = response.nodes;
-            console.log(`Fetched ${nodes.length} issues from project...`);
+            console.log(`Fetched ${nodes.length} issues from project...`, nodes[0]);
 
             for (const node of nodes) {
                 // Add standard fields
@@ -239,7 +241,9 @@ async function main() {
                     Title: node.content.title, // Added Title field assuming you want to include it
                     Body: node.content.body,
                     URL: node.content.url,
-                    Labels: labels
+                    Labels: labels,
+                    Created: moment(node.content.createdAt).format("YYYY-MM-DD"),
+                    Updated: moment(node.content.updatedAt).format("YYYY-MM-DD"),
                 };
                 // Add custom fields
                 for (const fieldValue of node.fieldValues.nodes) {
@@ -259,7 +263,7 @@ async function main() {
 
         // Convert to CSV
         // Assuming 'allIssues' is an array of issue objects and 'customFieldsSet' contains all unique field names
-        const headers = ["Number", "Title", "Body", "URL", "Labels", ...customFieldsSet];
+        const headers = ["Number", "Title", "Body", "URL", "Labels", "Created", "Updated", ...customFieldsSet];
 
         // Initialize CSV content with headers
         let csvContent = [headers.join(",")];
