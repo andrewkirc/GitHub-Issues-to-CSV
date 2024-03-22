@@ -1,10 +1,7 @@
 const fs = require('fs');
 const { graphql } = require('@octokit/graphql');
-const { request } = require('@octokit/request');
-const { Octokit } = require("@octokit/rest");
 const moment = require('moment');
 const envJSON = require('./env.json');
-const { env } = require('process');
 
 /**
  * This script exports all issues from a GitHub repository to a CSV file.
