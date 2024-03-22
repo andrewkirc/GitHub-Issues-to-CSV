@@ -275,7 +275,7 @@ async function main(GITHUB_PROJECT_IDs) {
                 const response = await fetchIssuesFromProject(afterCursor, projectId);
                 const pageInfo = response.pageInfo;
                 const nodes = response.nodes;
-                console.log(`Fetched ${nodes.length} issues from project...`, nodes[0]);
+                console.log(`Fetched ${nodes.length} issues from project...`);
 
                 for (const node of nodes) {
                     // Add standard fields
